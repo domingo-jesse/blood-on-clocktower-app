@@ -167,7 +167,7 @@ def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> 
         y = center + radius * math.sin(angle)
         initials = "".join(part[0] for part in player.name.split()[:2]).upper() if player.name.strip() else str(player.seat)
         alive_class = "alive" if player.alive else "dead"
-        dead_vote_class = "dead-vote-used" if player.dead_vote_used else ""
+        dead_vote_class = "dead-vote-used" if (not player.alive and player.dead_vote_used) else ""
         role_markup = f"<div class='grim-role'>{escape(player.role)}</div>" if player.role.strip() else ""
         is_selected = "selected" if selected_seat == player.seat else ""
         seat_markup.append(
@@ -346,11 +346,19 @@ with st.container():
             index=([""] + ROLE_OPTIONS).index(selected.role) if selected.role in ROLE_OPTIONS else 0,
             format_func=lambda role: role if role else "Select role",
         )
-        identity_cols = st.columns(4)
-        selected.alive = identity_cols[0].toggle("Dead", value=selected.alive)
-        selected.dead_vote_used = identity_cols[1].toggle("Dead vote used", value=selected.dead_vote_used)
-        selected.alignment = identity_cols[2].selectbox("Alignment", ALIGNMENTS, index=ALIGNMENTS.index(selected.alignment))
-        selected.suspicion = identity_cols[3].slider("Suspicion", 1, 5, value=selected.suspicion)
+        status_cols = st.columns(2)
+        is_dead = status_cols[0].toggle("Dead", value=not selected.alive)
+        selected.alive = not is_dead
+        selected.dead_vote_used = status_cols[1].toggle(
+            "Dead vote used",
+            value=selected.dead_vote_used,
+            disabled=selected.alive,
+            help="Enable this only after a player is dead and has spent their ghost vote.",
+        )
+
+        detail_cols = st.columns(2)
+        selected.alignment = detail_cols[0].selectbox("Alignment", ALIGNMENTS, index=ALIGNMENTS.index(selected.alignment))
+        selected.suspicion = detail_cols[1].slider("Suspicion", 1, 5, value=selected.suspicion)
 
         selected.quick_tags = st.multiselect("Quick tags", QUICK_TAG_OPTIONS, default=selected.quick_tags)
         selected.notes = st.text_area("Notes", value=selected.notes, height=140)
