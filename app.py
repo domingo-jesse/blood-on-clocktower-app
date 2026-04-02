@@ -140,7 +140,7 @@ def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> 
         return
 
     center = 50
-    radius = 38
+    radius = max(26, min(34, 44 - count))
     seat_markup = []
 
     for idx, player in enumerate(players):
@@ -171,11 +171,12 @@ def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> 
             """
             <style>
                 .grim-board {
-                    width: min(72vw, 760px);
+                    width: min(76vw, 820px);
                     aspect-ratio: 1 / 1;
-                    margin: 0 auto 1rem auto;
+                    margin: 0 auto 1.6rem auto;
                     border-radius: 999px;
                     position: relative;
+                    overflow: visible;
                     background: radial-gradient(circle at center, #2b0d3a 0%, #15051f 68%, #09020f 100%);
                     border: 2px solid #3f2853;
                     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45), inset 0 0 90px rgba(255, 255, 255, 0.04);
@@ -205,11 +206,12 @@ def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> 
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    width: 92px;
+                    width: 98px;
+                    z-index: 3;
                 }
                 .grim-token {
-                    width: 60px;
-                    height: 60px;
+                    width: clamp(44px, 5.2vw, 58px);
+                    height: clamp(44px, 5.2vw, 58px);
                     border-radius: 999px;
                     display: flex;
                     align-items: center;
@@ -230,7 +232,7 @@ def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> 
                 }
                 .grim-name {
                     margin-top: 0.45rem;
-                    font-size: 0.82rem;
+                    font-size: clamp(0.66rem, 0.9vw, 0.8rem);
                     color: #ffffff;
                     font-weight: 600;
                     text-align: center;
@@ -245,9 +247,9 @@ def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> 
                     line-height: 1.05;
                 }
                 @media (max-width: 900px) {
-                    .grim-seat-wrapper { width: 78px; }
-                    .grim-token { width: 52px; height: 52px; font-size: 0.82rem; }
-                    .grim-name { font-size: 0.74rem; }
+                    .grim-seat-wrapper { width: 80px; }
+                    .grim-token { font-size: 0.82rem; }
+                    .grim-name { font-size: 0.7rem; }
                     .grim-pronouns { font-size: 0.68rem; }
                 }
             </style>
@@ -283,18 +285,12 @@ players: List[Player] = st.session_state.players
 st.title("🩸 Blood on the Clocktower Notes")
 st.caption("Python + Streamlit build for quick game-state tracking and theory notes.")
 
-with st.sidebar:
-    st.subheader("Game info")
+toolbar_cols = st.columns([1, 1, 1, 1])
+with toolbar_cols[0]:
     st.session_state.meta_title = st.text_input("Script", value=st.session_state.meta_title)
+with toolbar_cols[1]:
     st.session_state.meta_edition = st.text_input("Edition", value=st.session_state.meta_edition)
-
-    alive_count = sum(1 for p in players if p.alive)
-    reminder_count = sum(sum(1 for v in p.reminders.values() if v) for p in players)
-
-    st.metric("Players alive", alive_count)
-    st.metric("Active reminders", reminder_count)
-
-    st.subheader("Save / load")
+with toolbar_cols[2]:
     export_blob = {
         "title": st.session_state.meta_title,
         "edition": st.session_state.meta_edition,
@@ -307,7 +303,7 @@ with st.sidebar:
         mime="application/json",
         use_container_width=True,
     )
-
+with toolbar_cols[3]:
     uploaded = st.file_uploader("Load game JSON", type=["json"])
     if uploaded is not None:
         data = json.load(StringIO(uploaded.getvalue().decode("utf-8")))
@@ -361,16 +357,7 @@ if selected is not None:
 else:
     summary_cols[2].info("**Suspicion:** Select a player token")
 
-roster_col, editor_col = st.columns([1.1, 1.7], gap="large")
-
-with roster_col:
-    st.subheader("Roster")
-    for p in filtered_players if query.strip() else players:
-        badge = "🟢" if p.alive else "💀"
-        st.markdown(f"**Seat {p.seat}** · {badge} {p.name}  ")
-        st.caption(f"{p.alignment} · Tags: {', '.join(p.quick_tags) if p.quick_tags else 'none'}")
-
-with editor_col:
+with st.container():
     if selected is None:
         st.subheader("Player details")
         st.info("Click a player token in the circle above to open and edit that player's information.")
