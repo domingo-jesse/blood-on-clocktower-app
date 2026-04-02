@@ -390,6 +390,7 @@ with st.container():
             st.session_state.selected_seat = None
             st.rerun()
 
+        previous_role = selected.role
         selected.name = st.text_input("Name", value=selected.name)
         selected.role = st.selectbox(
             "Role (searchable)",
@@ -418,6 +419,9 @@ with st.container():
 
         selected_idx = next(i for i, p in enumerate(players) if p.seat == selected.seat)
         players[selected_idx] = selected
+
+        if selected.role != previous_role:
+            st.rerun()
 
         if (selected.alive != previous_alive) or (selected.dead_vote_used != previous_dead_vote_used):
             st.rerun()
