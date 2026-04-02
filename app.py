@@ -347,6 +347,8 @@ with st.container():
             format_func=lambda role: role if role else "Select role",
         )
         status_cols = st.columns(2)
+        previous_alive = selected.alive
+        previous_dead_vote_used = selected.dead_vote_used
         is_dead = status_cols[0].toggle("Dead", value=not selected.alive)
         selected.alive = not is_dead
         selected.dead_vote_used = status_cols[1].toggle(
@@ -365,5 +367,8 @@ with st.container():
 
         selected_idx = next(i for i, p in enumerate(players) if p.seat == selected.seat)
         players[selected_idx] = selected
+
+        if (selected.alive != previous_alive) or (selected.dead_vote_used != previous_dead_vote_used):
+            st.rerun()
 
 st.session_state.players = players
