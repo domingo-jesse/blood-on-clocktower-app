@@ -358,35 +358,10 @@ else:
 
 with st.container():
     if selected is None:
-        st.info("Click a player token in the circle above to open that player's popup.")
+        st.info("Click a player token in the circle above to edit that player below the grim.")
     else:
-        st.markdown(
-            dedent(
-                """
-                <style>
-                    div[data-testid="stVerticalBlock"]:has(> div > div > .player-popup) {
-                        position: fixed;
-                        right: 1rem;
-                        top: 4.8rem;
-                        width: min(460px, 92vw);
-                        z-index: 999;
-                        background: rgba(13, 7, 22, 0.95);
-                        border: 1px solid rgba(148, 127, 177, 0.65);
-                        border-radius: 14px;
-                        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
-                        backdrop-filter: blur(4px);
-                        padding: 0.3rem 0.8rem 0.9rem 0.8rem;
-                        max-height: calc(100vh - 6rem);
-                        overflow-y: auto;
-                    }
-                </style>
-                """
-            ),
-            unsafe_allow_html=True,
-        )
-        st.markdown('<div class="player-popup"></div>', unsafe_allow_html=True)
-        st.subheader(f"Seat {selected.seat} popup")
-        if st.button("Close popup"):
+        st.subheader(f"Seat {selected.seat} details")
+        if st.button("Clear selection"):
             st.session_state.selected_seat = None
             st.query_params.clear()
             st.rerun()
