@@ -134,7 +134,7 @@ def fuzzy_includes(query: str, value: str) -> bool:
     return False
 
 
-def render_grimoire_circle(players: List[Player]) -> None:
+def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> None:
     count = len(players)
     if count == 0:
         return
@@ -151,15 +151,18 @@ def render_grimoire_circle(players: List[Player]) -> None:
         initials = "".join(part[0] for part in player.name.split()[:2]).upper() if player.name.strip() else str(player.seat)
         alive_class = "alive" if player.alive else "dead"
         pronouns = f"<div class='grim-pronouns'>{escape(player.pronouns)}</div>" if player.pronouns.strip() else ""
+        is_selected = "selected" if selected_seat == player.seat else ""
         seat_markup.append(
             f"""
-            <div class="grim-seat-wrapper" style="left:{x:.2f}%; top:{y:.2f}%;">
-                <div class="grim-token {alive_class}">
-                    <span>{escape(initials)}</span>
+            <a class="grim-seat-link" href="?seat={player.seat}">
+                <div class="grim-seat-wrapper" style="left:{x:.2f}%; top:{y:.2f}%;">
+                    <div class="grim-token {alive_class} {is_selected}">
+                        <span>{escape(initials)}</span>
+                    </div>
+                    <div class="grim-name">{escape(player.name)}</div>
+                    {pronouns}
                 </div>
-                <div class="grim-name">{escape(player.name)}</div>
-                {pronouns}
-            </div>
+            </a>
             """
         )
 
@@ -192,6 +195,10 @@ def render_grimoire_circle(players: List[Player]) -> None:
                     background: rgba(0, 0, 0, 0.35);
                     border: 1px solid rgba(255, 255, 255, 0.18);
                 }
+                .grim-seat-link {
+                    color: inherit;
+                    text-decoration: none;
+                }
                 .grim-seat-wrapper {
                     position: absolute;
                     transform: translate(-50%, -50%);
@@ -212,6 +219,9 @@ def render_grimoire_circle(players: List[Player]) -> None:
                     background: radial-gradient(circle at 35% 30%, #fff6dd 0%, #e6d5ad 65%, #c7b183 100%);
                     border: 2px solid #2f1f10;
                     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+                }
+                .grim-token.selected {
+                    box-shadow: 0 0 0 3px #6ce5ff, 0 0 18px rgba(108, 229, 255, 0.7);
                 }
                 .grim-token.dead {
                     filter: grayscale(1);
@@ -266,7 +276,7 @@ if "meta_title" not in st.session_state:
 if "meta_edition" not in st.session_state:
     st.session_state.meta_edition = "Standard"
 if "selected_seat" not in st.session_state:
-    st.session_state.selected_seat = 1
+    st.session_state.selected_seat = None
 
 players: List[Player] = st.session_state.players
 
@@ -306,12 +316,21 @@ with st.sidebar:
         st.session_state.players = from_dict(data.get("players", []))
         if not st.session_state.players:
             st.session_state.players = [default_player(seat) for seat in range(1, 13)]
-        st.session_state.selected_seat = st.session_state.players[0].seat
+        st.session_state.selected_seat = None
         st.success("Imported game state.")
         st.rerun()
 
+query_params = st.query_params
+if "seat" in query_params:
+    try:
+        seat_from_query = int(query_params["seat"])
+        if any(p.seat == seat_from_query for p in players):
+            st.session_state.selected_seat = seat_from_query
+    except (ValueError, TypeError):
+        pass
+
 st.divider()
-render_grimoire_circle(players)
+render_grimoire_circle(players, st.session_state.selected_seat)
 st.caption("Live seat layout: players are arranged in a circle with names under each token.")
 
 query = st.text_input("Search players / notes / tags / possibilities")
@@ -332,15 +351,15 @@ for p in players:
 if query.strip():
     st.write(f"{len(filtered_players)} result(s)")
 
-seats = [p.seat for p in players]
-selected_seat = st.selectbox("Select seat", seats, index=max(0, seats.index(st.session_state.selected_seat)))
-st.session_state.selected_seat = selected_seat
-selected = next((p for p in players if p.seat == selected_seat), players[0])
+selected = next((p for p in players if p.seat == st.session_state.selected_seat), None)
 
 summary_cols = st.columns(3)
 summary_cols[0].info(f"**Script:** {st.session_state.meta_title}")
 summary_cols[1].info(f"**Edition:** {st.session_state.meta_edition}")
-summary_cols[2].info(f"**Suspicion:** {selected.suspicion}/5")
+if selected is not None:
+    summary_cols[2].info(f"**Suspicion:** {selected.suspicion}/5")
+else:
+    summary_cols[2].info("**Suspicion:** Select a player token")
 
 roster_col, editor_col = st.columns([1.1, 1.7], gap="large")
 
@@ -352,54 +371,63 @@ with roster_col:
         st.caption(f"{p.alignment} · Tags: {', '.join(p.quick_tags) if p.quick_tags else 'none'}")
 
 with editor_col:
-    st.subheader(f"Seat {selected.seat} details")
-    selected.name = st.text_input("Name", value=selected.name)
-    selected.pronouns = st.text_input("Pronouns", value=selected.pronouns)
-    identity_cols = st.columns(3)
-    selected.alive = identity_cols[0].toggle("Alive", value=selected.alive)
-    selected.alignment = identity_cols[1].selectbox("Alignment", ALIGNMENTS, index=ALIGNMENTS.index(selected.alignment))
-    selected.suspicion = identity_cols[2].slider("Suspicion", 1, 5, value=selected.suspicion)
+    if selected is None:
+        st.subheader("Player details")
+        st.info("Click a player token in the circle above to open and edit that player's information.")
+    else:
+        st.subheader(f"Seat {selected.seat} details")
+        if st.button("Clear selection"):
+            st.session_state.selected_seat = None
+            st.query_params.clear()
+            st.rerun()
 
-    selected.quick_tags = st.multiselect("Quick tags", QUICK_TAG_OPTIONS, default=selected.quick_tags)
-    selected.notes = st.text_area("Notes", value=selected.notes, height=140)
+        selected.name = st.text_input("Name", value=selected.name)
+        selected.pronouns = st.text_input("Pronouns", value=selected.pronouns)
+        identity_cols = st.columns(3)
+        selected.alive = identity_cols[0].toggle("Alive", value=selected.alive)
+        selected.alignment = identity_cols[1].selectbox("Alignment", ALIGNMENTS, index=ALIGNMENTS.index(selected.alignment))
+        selected.suspicion = identity_cols[2].slider("Suspicion", 1, 5, value=selected.suspicion)
 
-    st.markdown("#### Reminders")
-    reminder_cols = st.columns(len(REMINDER_KEYS))
-    for idx, key in enumerate(REMINDER_KEYS):
-        reminder_cols[idx].checkbox(key.replace("_", " ").title(), key=f"{selected.seat}-{key}", value=selected.reminders.get(key, False), on_change=None)
-        selected.reminders[key] = st.session_state[f"{selected.seat}-{key}"]
+        selected.quick_tags = st.multiselect("Quick tags", QUICK_TAG_OPTIONS, default=selected.quick_tags)
+        selected.notes = st.text_area("Notes", value=selected.notes, height=140)
 
-    st.markdown("#### Possible characters")
-    for idx, slot in enumerate(selected.possibilities):
-        with st.expander(f"Possibility {idx + 1}", expanded=True):
-            team_filter = st.selectbox(
-                "Team filter",
-                ["All", *TEAMS],
-                key=f"team-filter-{selected.seat}-{idx}",
-            )
-            pool = CHARACTER_POOL if team_filter == "All" else [c for c in CHARACTER_POOL if c["team"] == team_filter]
-            option_names = [""] + [c["name"] for c in pool]
-            if slot.name and slot.name not in option_names:
-                option_names.append(slot.name)
-            slot.name = st.selectbox(
-                "Character",
-                option_names,
-                index=option_names.index(slot.name) if slot.name in option_names else 0,
-                key=f"char-{selected.seat}-{idx}",
-            )
-            slot.confidence = st.selectbox(
-                "Confidence",
-                CONFIDENCE_LEVELS,
-                index=CONFIDENCE_LEVELS.index(slot.confidence),
-                key=f"conf-{selected.seat}-{idx}",
-            )
-            slot.note = st.text_area(
-                "Reasoning",
-                value=slot.note,
-                key=f"slot-note-{selected.seat}-{idx}",
-            )
+        st.markdown("#### Reminders")
+        reminder_cols = st.columns(len(REMINDER_KEYS))
+        for idx, key in enumerate(REMINDER_KEYS):
+            reminder_cols[idx].checkbox(key.replace("_", " ").title(), key=f"{selected.seat}-{key}", value=selected.reminders.get(key, False), on_change=None)
+            selected.reminders[key] = st.session_state[f"{selected.seat}-{key}"]
 
-    selected_idx = next(i for i, p in enumerate(players) if p.seat == selected.seat)
-    players[selected_idx] = selected
+        st.markdown("#### Possible characters")
+        for idx, slot in enumerate(selected.possibilities):
+            with st.expander(f"Possibility {idx + 1}", expanded=True):
+                team_filter = st.selectbox(
+                    "Team filter",
+                    ["All", *TEAMS],
+                    key=f"team-filter-{selected.seat}-{idx}",
+                )
+                pool = CHARACTER_POOL if team_filter == "All" else [c for c in CHARACTER_POOL if c["team"] == team_filter]
+                option_names = [""] + [c["name"] for c in pool]
+                if slot.name and slot.name not in option_names:
+                    option_names.append(slot.name)
+                slot.name = st.selectbox(
+                    "Character",
+                    option_names,
+                    index=option_names.index(slot.name) if slot.name in option_names else 0,
+                    key=f"char-{selected.seat}-{idx}",
+                )
+                slot.confidence = st.selectbox(
+                    "Confidence",
+                    CONFIDENCE_LEVELS,
+                    index=CONFIDENCE_LEVELS.index(slot.confidence),
+                    key=f"conf-{selected.seat}-{idx}",
+                )
+                slot.note = st.text_area(
+                    "Reasoning",
+                    value=slot.note,
+                    key=f"slot-note-{selected.seat}-{idx}",
+                )
+
+        selected_idx = next(i for i, p in enumerate(players) if p.seat == selected.seat)
+        players[selected_idx] = selected
 
 st.session_state.players = players
