@@ -314,12 +314,15 @@ render_grimoire_circle(players, st.session_state.selected_seat)
 st.caption("Live seat layout: players are arranged in a circle with names under each token.")
 
 st.write("Select a token below to edit details under the grim:")
-token_cols = st.columns(6)
-for idx, player in enumerate(players):
-    initials = "".join(part[0] for part in player.name.split()[:2]).upper() if player.name.strip() else str(player.seat)
-    label = f"{player.seat}: {initials}"
-    if token_cols[idx % 6].button(label, key=f"seat_btn_{player.seat}", use_container_width=True):
-        st.session_state.selected_seat = player.seat
+tokens_per_row = 6
+for row_start in range(0, len(players), tokens_per_row):
+    row_players = players[row_start : row_start + tokens_per_row]
+    row_cols = st.columns(tokens_per_row)
+    for col_idx, player in enumerate(row_players):
+        initials = "".join(part[0] for part in player.name.split()[:2]).upper() if player.name.strip() else str(player.seat)
+        label = f"{player.seat}: {initials}"
+        if row_cols[col_idx].button(label, key=f"seat_btn_{player.seat}", use_container_width=True):
+            st.session_state.selected_seat = player.seat
 
 selected = next((p for p in players if p.seat == st.session_state.selected_seat), None)
 if selected is not None:
