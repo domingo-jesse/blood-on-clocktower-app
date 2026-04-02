@@ -347,7 +347,7 @@ with st.container():
             format_func=lambda role: role if role else "Select role",
         )
         identity_cols = st.columns(4)
-        selected.alive = identity_cols[0].toggle("Alive", value=selected.alive)
+        selected.alive = identity_cols[0].toggle("Dead", value=selected.alive)
         selected.dead_vote_used = identity_cols[1].toggle("Dead vote used", value=selected.dead_vote_used)
         selected.alignment = identity_cols[2].selectbox("Alignment", ALIGNMENTS, index=ALIGNMENTS.index(selected.alignment))
         selected.suspicion = identity_cols[3].slider("Suspicion", 1, 5, value=selected.suspicion)
