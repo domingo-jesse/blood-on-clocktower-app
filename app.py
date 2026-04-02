@@ -151,6 +151,34 @@ def default_player(seat: int) -> Player:
     )
 
 
+def ensure_player_count(players: List[Player], desired_count: int) -> List[Player]:
+    if desired_count < len(players):
+        return players[:desired_count]
+
+    if desired_count > len(players):
+        next_seat = len(players) + 1
+        players = players + [default_player(seat) for seat in range(next_seat, desired_count + 1)]
+
+    return players
+
+
+def token_text(player: Player) -> str:
+    if player.role.strip():
+        return player.role[:3].upper()
+
+    if player.name.strip():
+        return "".join(part[0] for part in player.name.split()[:2]).upper()
+
+    return f"P{player.seat}"
+
+
+def player_short_label(player: Player) -> str:
+    if player.role.strip():
+        return f"P{player.seat}: {player.role}"
+
+    return f"P{player.seat}: {player.name}"
+
+
 def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> None:
     count = len(players)
     if count == 0:
@@ -165,7 +193,7 @@ def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> 
         angle = math.radians(angle_deg)
         x = center + radius * math.cos(angle)
         y = center + radius * math.sin(angle)
-        initials = "".join(part[0] for part in player.name.split()[:2]).upper() if player.name.strip() else str(player.seat)
+        initials = token_text(player)
         alive_class = "alive" if player.alive else "dead"
         dead_vote_class = "dead-vote-used" if (not player.alive and player.dead_vote_used) else ""
         role_markup = f"<div class='grim-role'>{escape(player.role)}</div>" if player.role.strip() else ""
@@ -185,7 +213,7 @@ def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> 
             """
             <style>
                 .grim-board {
-                    width: min(76vw, 820px);
+                    width: min(88vw, 820px);
                     aspect-ratio: 1 / 1;
                     margin: 0 auto 1.6rem auto;
                     border-radius: 999px;
@@ -216,7 +244,7 @@ def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> 
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    width: 98px;
+                    width: 106px;
                     z-index: 3;
                 }
                 .grim-token {
@@ -270,10 +298,17 @@ def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> 
                     line-height: 1.05;
                 }
                 @media (max-width: 900px) {
-                    .grim-seat-wrapper { width: 80px; }
+                    .grim-seat-wrapper { width: 88px; }
                     .grim-token { font-size: 0.82rem; }
-                    .grim-name { font-size: 0.7rem; }
-                    .grim-role { font-size: 0.68rem; }
+                    .grim-name { font-size: 0.7rem; margin-top: 0.5rem; }
+                    .grim-role { font-size: 0.68rem; margin-top: 0.2rem; }
+                }
+                @media (max-width: 640px) {
+                    .grim-board { width: min(96vw, 820px); }
+                    .grim-seat-wrapper { width: 92px; }
+                    .grim-token { width: clamp(42px, 14vw, 52px); height: clamp(42px, 14vw, 52px); }
+                    .grim-name { margin-top: 0.65rem; line-height: 1.2; }
+                    .grim-role { margin-top: 0.3rem; line-height: 1.15; }
                 }
             </style>
             """
@@ -296,6 +331,8 @@ def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> 
 
 if "players" not in st.session_state:
     st.session_state.players = [default_player(seat) for seat in range(1, 13)]
+if "player_count" not in st.session_state:
+    st.session_state.player_count = len(st.session_state.players)
 if "selected_seat" not in st.session_state:
     st.session_state.selected_seat = None
 
@@ -309,18 +346,31 @@ for player in players:
 
 st.title("🩸 Blood on the Clocktower Notes")
 
+player_count = st.slider(
+    "Player count",
+    min_value=3,
+    max_value=15,
+    value=st.session_state.player_count,
+    help="Adjust the number of active seats from 3 to 15.",
+)
+if player_count != st.session_state.player_count:
+    st.session_state.player_count = player_count
+
+players = ensure_player_count(players, st.session_state.player_count)
+if st.session_state.selected_seat is not None and st.session_state.selected_seat > len(players):
+    st.session_state.selected_seat = None
+
 st.divider()
 render_grimoire_circle(players, st.session_state.selected_seat)
-st.caption("Live seat layout: players are arranged in a circle with names under each token.")
+st.caption("Live seat layout: tokens update as you pick roles, and seats automatically match the selected player count.")
 
 st.write("Select a token below to edit details under the grim:")
-tokens_per_row = 6
+tokens_per_row = 5
 for row_start in range(0, len(players), tokens_per_row):
     row_players = players[row_start : row_start + tokens_per_row]
     row_cols = st.columns(tokens_per_row)
     for col_idx, player in enumerate(row_players):
-        initials = "".join(part[0] for part in player.name.split()[:2]).upper() if player.name.strip() else str(player.seat)
-        label = f"{player.seat}: {initials}"
+        label = player_short_label(player)
         if row_cols[col_idx].button(label, key=f"seat_btn_{player.seat}", use_container_width=True):
             st.session_state.selected_seat = player.seat
 
@@ -334,7 +384,8 @@ with st.container():
     if selected is None:
         st.info("Select a token above to edit that player below the grim.")
     else:
-        st.subheader(f"Seat {selected.seat} details")
+        role_label = selected.role if selected.role else "No role selected"
+        st.subheader(f"Seat {selected.seat} details • {role_label}")
         if st.button("Clear selection"):
             st.session_state.selected_seat = None
             st.rerun()
