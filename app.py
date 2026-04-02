@@ -55,20 +55,6 @@ def default_player(seat: int) -> Player:
     )
 
 
-def fuzzy_includes(query: str, value: str) -> bool:
-    q = query.lower().strip()
-    if not q:
-        return True
-    source = value.lower()
-    idx = 0
-    for ch in source:
-        if idx < len(q) and ch == q[idx]:
-            idx += 1
-        if idx >= len(q):
-            return True
-    return False
-
-
 def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> None:
     count = len(players)
     if count == 0:
@@ -89,12 +75,11 @@ def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> 
         is_selected = "selected" if selected_seat == player.seat else ""
         seat_markup.append(
             (
-                f'<a class="grim-seat-link" href="?seat={player.seat}">'
                 f'<div class="grim-seat-wrapper" style="left:{x:.2f}%; top:{y:.2f}%;">'
                 f'<div class="grim-token {alive_class} {is_selected}"><span>{escape(initials)}</span></div>'
                 f'<div class="grim-name">{escape(player.name)}</div>'
                 f"{pronouns}"
-                "</div></a>"
+                "</div>"
             )
         )
 
@@ -127,12 +112,6 @@ def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> 
                     text-transform: uppercase;
                     background: rgba(0, 0, 0, 0.35);
                     border: 1px solid rgba(255, 255, 255, 0.18);
-                }
-                .grim-seat-link {
-                    color: inherit;
-                    text-decoration: none;
-                    position: absolute;
-                    inset: 0;
                 }
                 .grim-seat-wrapper {
                     position: absolute;
@@ -214,35 +193,17 @@ players: List[Player] = st.session_state.players
 
 st.title("🩸 Blood on the Clocktower Notes")
 
-query_params = st.query_params
-if "seat" in query_params:
-    try:
-        seat_from_query = int(query_params["seat"])
-        if any(p.seat == seat_from_query for p in players):
-            st.session_state.selected_seat = seat_from_query
-    except (ValueError, TypeError):
-        pass
-
 st.divider()
 render_grimoire_circle(players, st.session_state.selected_seat)
 st.caption("Live seat layout: players are arranged in a circle with names under each token.")
 
-query = st.text_input("Search players / notes / tags")
-filtered_players = []
-for p in players:
-    haystack = " ".join(
-        [
-            p.name,
-            p.pronouns,
-            p.notes,
-            " ".join(p.quick_tags),
-        ]
-    )
-    if fuzzy_includes(query, haystack):
-        filtered_players.append(p)
-
-if query.strip():
-    st.write(f"{len(filtered_players)} result(s)")
+st.write("Select a token below to edit details under the grim:")
+token_cols = st.columns(6)
+for idx, player in enumerate(players):
+    initials = "".join(part[0] for part in player.name.split()[:2]).upper() if player.name.strip() else str(player.seat)
+    label = f"{player.seat}: {initials}"
+    if token_cols[idx % 6].button(label, key=f"seat_btn_{player.seat}", use_container_width=True):
+        st.session_state.selected_seat = player.seat
 
 selected = next((p for p in players if p.seat == st.session_state.selected_seat), None)
 if selected is not None:
@@ -252,12 +213,11 @@ else:
 
 with st.container():
     if selected is None:
-        st.info("Click a player token in the circle above to edit that player below the grim.")
+        st.info("Select a token above to edit that player below the grim.")
     else:
         st.subheader(f"Seat {selected.seat} details")
         if st.button("Clear selection"):
             st.session_state.selected_seat = None
-            st.query_params.clear()
             st.rerun()
 
         selected.name = st.text_input("Name", value=selected.name)
