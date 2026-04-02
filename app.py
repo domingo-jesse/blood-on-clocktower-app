@@ -3,6 +3,7 @@ import math
 from dataclasses import asdict, dataclass
 from html import escape
 from io import StringIO
+from textwrap import dedent
 from typing import Dict, List
 
 import streamlit as st
@@ -163,93 +164,97 @@ def render_grimoire_circle(players: List[Player]) -> None:
         )
 
     st.markdown(
-        """
-        <style>
-            .grim-board {
-                width: min(72vw, 760px);
-                aspect-ratio: 1 / 1;
-                margin: 0 auto 1rem auto;
-                border-radius: 999px;
-                position: relative;
-                background: radial-gradient(circle at center, #2b0d3a 0%, #15051f 68%, #09020f 100%);
-                border: 2px solid #3f2853;
-                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45), inset 0 0 90px rgba(255, 255, 255, 0.04);
-            }
-            .grim-center {
-                position: absolute;
-                inset: 39% 39%;
-                border-radius: 999px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #f4e9d8;
-                font-weight: 700;
-                font-size: clamp(0.75rem, 1.2vw, 1rem);
-                letter-spacing: 0.05em;
-                text-transform: uppercase;
-                background: rgba(0, 0, 0, 0.35);
-                border: 1px solid rgba(255, 255, 255, 0.18);
-            }
-            .grim-seat-wrapper {
-                position: absolute;
-                transform: translate(-50%, -50%);
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                width: 92px;
-            }
-            .grim-token {
-                width: 60px;
-                height: 60px;
-                border-radius: 999px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #26170d;
-                font-weight: 700;
-                background: radial-gradient(circle at 35% 30%, #fff6dd 0%, #e6d5ad 65%, #c7b183 100%);
-                border: 2px solid #2f1f10;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
-            }
-            .grim-token.dead {
-                filter: grayscale(1);
-                opacity: 0.7;
-                border-color: #7d7d7d;
-            }
-            .grim-name {
-                margin-top: 0.45rem;
-                font-size: 0.82rem;
-                color: #ffffff;
-                font-weight: 600;
-                text-align: center;
-                line-height: 1.1;
-                text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
-            }
-            .grim-pronouns {
-                margin-top: 0.1rem;
-                font-size: 0.72rem;
-                color: #d0c0de;
-                text-align: center;
-                line-height: 1.05;
-            }
-            @media (max-width: 900px) {
-                .grim-seat-wrapper { width: 78px; }
-                .grim-token { width: 52px; height: 52px; font-size: 0.82rem; }
-                .grim-name { font-size: 0.74rem; }
-                .grim-pronouns { font-size: 0.68rem; }
-            }
-        </style>
-        """,
+        dedent(
+            """
+            <style>
+                .grim-board {
+                    width: min(72vw, 760px);
+                    aspect-ratio: 1 / 1;
+                    margin: 0 auto 1rem auto;
+                    border-radius: 999px;
+                    position: relative;
+                    background: radial-gradient(circle at center, #2b0d3a 0%, #15051f 68%, #09020f 100%);
+                    border: 2px solid #3f2853;
+                    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45), inset 0 0 90px rgba(255, 255, 255, 0.04);
+                }
+                .grim-center {
+                    position: absolute;
+                    inset: 39% 39%;
+                    border-radius: 999px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #f4e9d8;
+                    font-weight: 700;
+                    font-size: clamp(0.75rem, 1.2vw, 1rem);
+                    letter-spacing: 0.05em;
+                    text-transform: uppercase;
+                    background: rgba(0, 0, 0, 0.35);
+                    border: 1px solid rgba(255, 255, 255, 0.18);
+                }
+                .grim-seat-wrapper {
+                    position: absolute;
+                    transform: translate(-50%, -50%);
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    width: 92px;
+                }
+                .grim-token {
+                    width: 60px;
+                    height: 60px;
+                    border-radius: 999px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #26170d;
+                    font-weight: 700;
+                    background: radial-gradient(circle at 35% 30%, #fff6dd 0%, #e6d5ad 65%, #c7b183 100%);
+                    border: 2px solid #2f1f10;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+                }
+                .grim-token.dead {
+                    filter: grayscale(1);
+                    opacity: 0.7;
+                    border-color: #7d7d7d;
+                }
+                .grim-name {
+                    margin-top: 0.45rem;
+                    font-size: 0.82rem;
+                    color: #ffffff;
+                    font-weight: 600;
+                    text-align: center;
+                    line-height: 1.1;
+                    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+                }
+                .grim-pronouns {
+                    margin-top: 0.1rem;
+                    font-size: 0.72rem;
+                    color: #d0c0de;
+                    text-align: center;
+                    line-height: 1.05;
+                }
+                @media (max-width: 900px) {
+                    .grim-seat-wrapper { width: 78px; }
+                    .grim-token { width: 52px; height: 52px; font-size: 0.82rem; }
+                    .grim-name { font-size: 0.74rem; }
+                    .grim-pronouns { font-size: 0.68rem; }
+                }
+            </style>
+            """
+        ),
         unsafe_allow_html=True,
     )
 
     st.markdown(
-        f"""
-        <div class="grim-board">
-            <div class="grim-center">Storyteller</div>
-            {''.join(seat_markup)}
-        </div>
-        """,
+        dedent(
+            f"""
+            <div class="grim-board">
+                <div class="grim-center">Storyteller</div>
+                {''.join(seat_markup)}
+            </div>
+            """
+        ),
         unsafe_allow_html=True,
     )
 
