@@ -153,17 +153,14 @@ def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> 
         pronouns = f"<div class='grim-pronouns'>{escape(player.pronouns)}</div>" if player.pronouns.strip() else ""
         is_selected = "selected" if selected_seat == player.seat else ""
         seat_markup.append(
-            f"""
-            <a class="grim-seat-link" href="?seat={player.seat}">
-                <div class="grim-seat-wrapper" style="left:{x:.2f}%; top:{y:.2f}%;">
-                    <div class="grim-token {alive_class} {is_selected}">
-                        <span>{escape(initials)}</span>
-                    </div>
-                    <div class="grim-name">{escape(player.name)}</div>
-                    {pronouns}
-                </div>
-            </a>
-            """
+            (
+                f'<a class="grim-seat-link" href="?seat={player.seat}">'
+                f'<div class="grim-seat-wrapper" style="left:{x:.2f}%; top:{y:.2f}%;">'
+                f'<div class="grim-token {alive_class} {is_selected}"><span>{escape(initials)}</span></div>'
+                f'<div class="grim-name">{escape(player.name)}</div>'
+                f"{pronouns}"
+                "</div></a>"
+            )
         )
 
     st.markdown(
@@ -199,6 +196,8 @@ def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> 
                 .grim-seat-link {
                     color: inherit;
                     text-decoration: none;
+                    position: absolute;
+                    inset: 0;
                 }
                 .grim-seat-wrapper {
                     position: absolute;
@@ -359,11 +358,35 @@ else:
 
 with st.container():
     if selected is None:
-        st.subheader("Player details")
-        st.info("Click a player token in the circle above to open and edit that player's information.")
+        st.info("Click a player token in the circle above to open that player's popup.")
     else:
-        st.subheader(f"Seat {selected.seat} details")
-        if st.button("Clear selection"):
+        st.markdown(
+            dedent(
+                """
+                <style>
+                    div[data-testid="stVerticalBlock"]:has(> div > div > .player-popup) {
+                        position: fixed;
+                        right: 1rem;
+                        top: 4.8rem;
+                        width: min(460px, 92vw);
+                        z-index: 999;
+                        background: rgba(13, 7, 22, 0.95);
+                        border: 1px solid rgba(148, 127, 177, 0.65);
+                        border-radius: 14px;
+                        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+                        backdrop-filter: blur(4px);
+                        padding: 0.3rem 0.8rem 0.9rem 0.8rem;
+                        max-height: calc(100vh - 6rem);
+                        overflow-y: auto;
+                    }
+                </style>
+                """
+            ),
+            unsafe_allow_html=True,
+        )
+        st.markdown('<div class="player-popup"></div>', unsafe_allow_html=True)
+        st.subheader(f"Seat {selected.seat} popup")
+        if st.button("Close popup"):
             st.session_state.selected_seat = None
             st.query_params.clear()
             st.rerun()
