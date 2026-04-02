@@ -9,6 +9,100 @@ import streamlit as st
 st.set_page_config(page_title="Blood on the Clocktower Assistant", layout="wide")
 
 ALIGNMENTS = ["Unknown", "Good", "Evil"]
+ROLE_OPTIONS = sorted(
+    [
+        # Trouble Brewing
+        "Washerwoman",
+        "Librarian",
+        "Investigator",
+        "Chef",
+        "Empath",
+        "Fortune Teller",
+        "Undertaker",
+        "Monk",
+        "Ravenkeeper",
+        "Virgin",
+        "Slayer",
+        "Soldier",
+        "Mayor",
+        "Butler",
+        "Drunk",
+        "Recluse",
+        "Saint",
+        "Poisoner",
+        "Spy",
+        "Scarlet Woman",
+        "Baron",
+        "Imp",
+        # Bad Moon Rising
+        "Grandmother",
+        "Sailor",
+        "Chambermaid",
+        "Exorcist",
+        "Innkeeper",
+        "Gambler",
+        "Gossip",
+        "Courtier",
+        "Professor",
+        "Minstrel",
+        "Tea Lady",
+        "Pacifist",
+        "Fool",
+        "Tinker",
+        "Moonchild",
+        "Goon",
+        "Lunatic",
+        "Godfather",
+        "Devil's Advocate",
+        "Assassin",
+        "Mastermind",
+        "Zombuul",
+        "Pukka",
+        "Shabaloth",
+        "Po",
+        # Sects & Violets
+        "Clockmaker",
+        "Dreamer",
+        "Snake Charmer",
+        "Mathematician",
+        "Flowergirl",
+        "Town Crier",
+        "Oracle",
+        "Savant",
+        "Seamstress",
+        "Philosopher",
+        "Artist",
+        "Juggler",
+        "Sage",
+        "Mutant",
+        "Sweetheart",
+        "Barber",
+        "Klutz",
+        "Evil Twin",
+        "Witch",
+        "Cerenovus",
+        "Pit-Hag",
+        "Fang Gu",
+        "Vigormortis",
+        "No Dashii",
+        "Vortox",
+        # Travellers
+        "Beggar",
+        "Bishop",
+        "Bureaucrat",
+        "Bone Collector",
+        "Butcher",
+        "Deviant",
+        "Fool (Traveller)",
+        "Gangster",
+        "Gunslinger",
+        "Harlot",
+        "Judge",
+        "Matron",
+        "Scapegoat",
+        "Thief",
+    ]
+)
 REMINDER_KEYS = ["poisoned", "drunk", "safe", "protected", "no_ability", "resurrected", "cursed"]
 QUICK_TAG_OPTIONS = [
     "claims X",
@@ -32,8 +126,9 @@ QUICK_TAG_OPTIONS = [
 class Player:
     seat: int
     name: str
-    pronouns: str
+    role: str
     alive: bool
+    dead_vote_used: bool
     alignment: str
     notes: str
     quick_tags: List[str]
@@ -45,8 +140,9 @@ def default_player(seat: int) -> Player:
     return Player(
         seat=seat,
         name=f"Player {seat}",
-        pronouns="",
+        role="",
         alive=True,
+        dead_vote_used=False,
         alignment="Unknown",
         notes="",
         quick_tags=[],
@@ -71,14 +167,15 @@ def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> 
         y = center + radius * math.sin(angle)
         initials = "".join(part[0] for part in player.name.split()[:2]).upper() if player.name.strip() else str(player.seat)
         alive_class = "alive" if player.alive else "dead"
-        pronouns = f"<div class='grim-pronouns'>{escape(player.pronouns)}</div>" if player.pronouns.strip() else ""
+        dead_vote_class = "dead-vote-used" if player.dead_vote_used else ""
+        role_markup = f"<div class='grim-role'>{escape(player.role)}</div>" if player.role.strip() else ""
         is_selected = "selected" if selected_seat == player.seat else ""
         seat_markup.append(
             (
                 f'<div class="grim-seat-wrapper" style="left:{x:.2f}%; top:{y:.2f}%;">'
-                f'<div class="grim-token {alive_class} {is_selected}"><span>{escape(initials)}</span></div>'
+                f'<div class="grim-token {alive_class} {dead_vote_class} {is_selected}"><span>{escape(initials)}</span></div>'
                 f'<div class="grim-name">{escape(player.name)}</div>'
-                f"{pronouns}"
+                f"{role_markup}"
                 "</div>"
             )
         )
@@ -139,9 +236,22 @@ def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> 
                     box-shadow: 0 0 0 3px #6ce5ff, 0 0 18px rgba(108, 229, 255, 0.7);
                 }
                 .grim-token.dead {
-                    filter: grayscale(1);
-                    opacity: 0.7;
+                    background: radial-gradient(circle at 35% 30%, #262626 0%, #111111 65%, #000000 100%);
+                    color: #f0f0f0;
                     border-color: #7d7d7d;
+                }
+                .grim-token.dead-vote-used::after {
+                    content: "✕";
+                    position: absolute;
+                    inset: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #ff2c2c;
+                    font-size: clamp(1.8rem, 4.6vw, 2.8rem);
+                    text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
+                    font-weight: 900;
+                    pointer-events: none;
                 }
                 .grim-name {
                     margin-top: 0.45rem;
@@ -152,7 +262,7 @@ def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> 
                     line-height: 1.1;
                     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
                 }
-                .grim-pronouns {
+                .grim-role {
                     margin-top: 0.1rem;
                     font-size: 0.72rem;
                     color: #d0c0de;
@@ -163,7 +273,7 @@ def render_grimoire_circle(players: List[Player], selected_seat: int | None) -> 
                     .grim-seat-wrapper { width: 80px; }
                     .grim-token { font-size: 0.82rem; }
                     .grim-name { font-size: 0.7rem; }
-                    .grim-pronouns { font-size: 0.68rem; }
+                    .grim-role { font-size: 0.68rem; }
                 }
             </style>
             """
@@ -190,6 +300,12 @@ if "selected_seat" not in st.session_state:
     st.session_state.selected_seat = None
 
 players: List[Player] = st.session_state.players
+# Backward compatibility for old saved session objects.
+for player in players:
+    if not hasattr(player, "role"):
+        player.role = ""
+    if not hasattr(player, "dead_vote_used"):
+        player.dead_vote_used = False
 
 st.title("🩸 Blood on the Clocktower Notes")
 
@@ -221,11 +337,17 @@ with st.container():
             st.rerun()
 
         selected.name = st.text_input("Name", value=selected.name)
-        selected.pronouns = st.text_input("Pronouns", value=selected.pronouns)
-        identity_cols = st.columns(3)
+        selected.role = st.selectbox(
+            "Role (searchable)",
+            [""] + ROLE_OPTIONS,
+            index=([""] + ROLE_OPTIONS).index(selected.role) if selected.role in ROLE_OPTIONS else 0,
+            format_func=lambda role: role if role else "Select role",
+        )
+        identity_cols = st.columns(4)
         selected.alive = identity_cols[0].toggle("Alive", value=selected.alive)
-        selected.alignment = identity_cols[1].selectbox("Alignment", ALIGNMENTS, index=ALIGNMENTS.index(selected.alignment))
-        selected.suspicion = identity_cols[2].slider("Suspicion", 1, 5, value=selected.suspicion)
+        selected.dead_vote_used = identity_cols[1].toggle("Dead vote used", value=selected.dead_vote_used)
+        selected.alignment = identity_cols[2].selectbox("Alignment", ALIGNMENTS, index=ALIGNMENTS.index(selected.alignment))
+        selected.suspicion = identity_cols[3].slider("Suspicion", 1, 5, value=selected.suspicion)
 
         selected.quick_tags = st.multiselect("Quick tags", QUICK_TAG_OPTIONS, default=selected.quick_tags)
         selected.notes = st.text_area("Notes", value=selected.notes, height=140)
